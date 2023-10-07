@@ -1,0 +1,42 @@
+version: "3"
+
+services:
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - 3000:3000
+    volumes:
+      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    depends_on:
+      - tempo
+
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/mnt/config/tempo.yaml"]
+    volumes:
+      - ./config:/mnt/config
+    ports:
+      - 8000:8000 # tempo
+      - 4318:4318 # otlp http
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ./config:/mnt/config
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/mnt/config/promtail.yaml
+    depends_on:
+      - loki
+
+  loki:
+    image: grafana/loki:2.9.0
+    command: -config.file=/mnt/config/loki.yaml
+    volumes:
+      - ./config:/mnt/config
+    ports:
+      - 3100:3100
